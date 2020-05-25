@@ -38,7 +38,7 @@ select count(empno) over (partition by deptno order by trunc(hiredate,'YY') rang
 
 //ROLLUP with GROUPING
 select case grouping(deptno) when 1 then 'Total'
-							 else to_char(deptno) end,
+		       	     else to_char(deptno) end,
 count(deptno) from emp
 group by rollup (deptno);
 
