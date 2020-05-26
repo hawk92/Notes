@@ -1,21 +1,21 @@
-//Print name of employee and his manager
+/*Print name of employee and his manager*/
 select a.ename||' manager is '||b.ename from emp a, emp b
 where a.mgr=b.empno;
 
-//Show null value at the last
+/*Show null value at the last*/
 select * from emp order by mgr desc nulls last;
 
-//Next friday after 6 months
+/*Next friday after 6 months*/
 select NEXT_DAY(add_months(hiredate,6),'FRIDAY') from emp;
 
 select ename||'''s'||' works as '||job from emp;
 
-//Second highest salary
+/*Second highest salary*/
 select * from (
 select e.*,dense_rank() over (order by sal desc) as rank from emp e 
 ) where rank=2 order by 1 desc;
 
-//Query for viewing plan for a particular query
+/*Query for viewing plan for a particular query*/
 explain plan for
 select max(avg_Sal) from (
 select avg(sal) avg_Sal,deptno from emp
@@ -23,27 +23,27 @@ group by deptno);
 
 select * from table(dbms_xplan.display);
 
-//View storage required for each object
+/*View storage required for each object*/
 select * from user_segments;
 
-//Sum of Salaries of employees for each department whose salary differ by 1150
+/*Sum of Salaries of employees for each department whose salary differ by 1150*/
 select sum(sal) over (partition by deptno order by sal range between 1150 preceding and current row)
 ,sum(sal) over (partition by deptno order by sal rows between unbounded preceding and unbounded following),e.* 
 from emp e;
 
 
-//No of employees joined in that particular year in each department
+/*No of employees joined in that particular year in each department*/
 select count(empno) over (partition by deptno order by trunc(hiredate,'YY') range between current row and current row),e.* from emp e;
 
 
-//ROLLUP with GROUPING
+/*ROLLUP with GROUPING*/
 select case grouping(deptno) when 1 then 'Total'
 		       	     else to_char(deptno) end,
 count(deptno) from emp
 group by rollup (deptno);
 
 
-//CUBE with GROUPING_ID
+/*CUBE with GROUPING_ID*/
 select case grouping_id(deptno,job,to_char(hiredate,'YYYY'))
                              when 0 then 'DEPT_JOB_YEAR_WISE_TOTAL'
                              when 1 then 'DEPT_JOB_WISE_TOTAL'
@@ -56,3 +56,59 @@ select case grouping_id(deptno,job,to_char(hiredate,'YYYY'))
 deptno,job,to_char(hiredate,'YYYY') hireyear,count(ename) from emp
 group by cube(deptno,job,to_char(hiredate,'YYYY'))
 order by 1,2,3 desc nulls first;
+
+
+/*Employee having 3rd highest salary in each department*/
+select * from (
+select e.*,dense_rank() over (partition by deptno order by sal desc) sal_rank from emp e)
+where sal_rank=3;
+
+/*Department having highest number of employees and the count*/
+select * from (
+select rank() over(order by dept_count desc) count_rank,deptno,dname from (
+select distinct count(e.deptno) over (partition by e.deptno) dept_count,e.deptno,dname from emp e join dept d
+on e.deptno=d.deptno order by dept_count desc)) where count_rank=1 ;
+
+/*Oldest employee in each department and their department name*/
+select e.*,d.dname from emp e join dept d on e.deptno=d.deptno where e.hiredate in(
+select min(hiredate) from emp group by deptno);
+
+/*Employee having salary higher than avg salary of department*/
+select e.*,e1.avg_sal from emp e,(select avg(sal) avg_sal,deptno from emp group by deptno)e1
+where e.deptno=e1.deptno and e.sal>e1.avg_Sal 
+order by e.deptno,e1.avg_sal;
+
+/*Department having no elmployees*/
+select d.loc,d.dname,d.deptno from dept d left join emp e 
+on d.deptno=e.deptno 
+where e.deptno is null; 
+
+/*4th highest salary across org*/
+select * from (
+select dense_rank() over (order by sal desc) sal_rank,e.* from emp e)
+where sal_rank=4;
+
+/*Employee working for more than 39 years in SALES dept*/
+select e.*,1*e.sal bonus from emp e join dept d on e.deptno=d.deptno 
+where d.dname='SALES' and months_between(SYSDATE,hiredate)/12 >39
+order by e.deptno,e.hiredate;
+
+/*Salary difference between employee salary and maximum salary for that role in that dept*/
+select e.ename,e.job,e.deptno,e.sal,max(e.sal) over (partition by e.job,e.deptno),max(e.sal) over (partition by e.job,e.deptno)-e.sal from emp e
+order by e.deptno,e.job;
+
+/*Department and number of employees having salary greater than average salary of org in the dept*/
+select dname,count(dname) from (
+select * from  emp e join dept d on e.deptno=d.deptno
+where e.sal > (select avg(sal) from emp)) group by dname
+order by 2;
+
+/*Employees who have joined recently in each dept*/
+select * from (
+select e.*,lead(e.hiredate) over (partition by e.deptno order by e.hiredate) latest_hiredate from emp e) where latest_hiredate is null;
+
+/*Departments having atleast 2 employees working for 39yrs*/
+select dname from emp e join dept d on e.deptno=d.deptno 
+where months_between(SYSDATE,hiredate)/12 >=39
+group by dname having count(dname)>=2;
+
