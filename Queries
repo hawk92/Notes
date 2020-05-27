@@ -112,3 +112,19 @@ select dname from emp e join dept d on e.deptno=d.deptno
 where months_between(SYSDATE,hiredate)/12 >=39
 group by dname having count(dname)>=2;
 
+/*Employee belonging to CHICAGO having highest salary hiredate before latest hired grade 2 employee*/
+select * from  emp where sal=(select max(e.sal) from emp e join dept d on e.deptno=d.deptno where loc='CHICAGO' )
+and hiredate < (select max(hiredate) from emp where sal between (select losal from salgrade where grade=2) and (select hisal from salgrade where grade=2));
+
+
+/*Employee blonging to DALLAS or CHICAGO having same grade as ADAM or more experienced thn SMITH*/
+select a.*,b.grade from
+(select * from emp e join dept d on e.deptno=d.deptno where d.loc='DALLAS' or d.loc='CHICAGO') a,salgrade b
+where a.sal between b.losal and b.hisal and (a.hiredate < (select hiredate from emp where ename='SMITH') or b.grade=(select s.grade from emp,salgrade s where ename='ADAMS' and sal between s.losal and s.hisal));
+
+/*Employee under KING having highest salary*/
+select * from (
+select e.*,max(sal) over (partition by mgr) max_sal from emp e where e.mgr=(select empno from emp where ename='KING')
+) where max_Sal=sal;
+
+
